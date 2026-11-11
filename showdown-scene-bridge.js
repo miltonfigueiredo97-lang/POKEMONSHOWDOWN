@@ -1,7 +1,7 @@
 /* Web Animations adapter for Pokémon Showdown's original licensed animation scripts. */
 (function pokemonSceneBridge() {
   "use strict";
-  const FX="https://play.pokemonshowdown.com/fx/";
+  const FX="/assets/showdown/fx/";
   const $=id=>document.getElementById(id);
   const sleep=ms=>new Promise(done=>setTimeout(done,ms));
   const cap=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -13,11 +13,11 @@
   }
   class Scene {
     constructor(s){
-      this.s=s;this.duration=320;this.effects=[];this.pendingImages=[];this.timeline=[];this.started=null;this.mons=[];this.failedTextures=0;
+      this.s=s;this.duration=420;this.effects=[];this.pendingImages=[];this.timeline=[];this.started=null;this.mons=[];this.failedTextures=0;this.assetFallbacks=0;
       this.$bg=dummy();this.$bgEffect=dummy();this.$battle=dummy();this.$fx=dummy();
       this.battle={mySide:{active:[],pokemon:[]},yourSide:{active:[],pokemon:[]},p1:{active:[]},p2:{active:[]}};
     }
-    wait(t){this.duration=Math.max(this.duration,Math.min(4000,(Number(t)||0)*.85));}
+    wait(t){this.duration=Math.max(this.duration,Math.min(6400,(Number(t)||0)*1.25));}
     backgroundEffect(path,opacity=.4,time=500){
       if(typeof path!=="string")return;
       const img=document.createElement("div");img.className="ps-native-weather";img.style.backgroundImage=path;img.style.opacity=String(opacity||.4);this.s.area.append(img);
@@ -47,6 +47,7 @@
         };
         img.onerror=()=>{
           if(!img.dataset.fxFallback){
+            this.assetFallbacks++;
             img.dataset.fxFallback="1";
             img.src=FX+"impact.png";
           }else finish(false);
@@ -56,7 +57,7 @@
       this.pendingImages.push(ready);
       const a={x:0,y:0,z:0,scale:1,opacity:1,...start},b={...a,...end};
       const aa=coords(this.s,a),bb=coords(this.s,b),w=(Number(meta.w)||80)*this.s.sx,h=(Number(meta.h)||80)*this.s.sy;
-      const fromTime=cap(Number(start?.time||0)*.85,0,7500),endTime=cap(Number(end?.time??((start?.time||0)+430))*.85,0,9200),dur=cap(endTime-fromTime,110,2600);
+      const fromTime=cap(Number(start?.time||0)*1.25,0,9000),endTime=cap(Number(end?.time??((start?.time||0)+430))*1.25,0,10500),dur=cap(endTime-fromTime,170,3500);
       img.style.left=aa.x+"px";img.style.top=aa.y+"px";img.style.width=w+"px";img.style.height=h+"px";img.style.opacity="0";img.style.position="absolute";
       if(options&&typeof options==="object"&&options.filter)img.style.filter=options.filter;
       this.s.area.append(img);
@@ -96,22 +97,22 @@
     }
     async finish(){
       await this.start();
-      await sleep(cap(this.duration+80,290,4200));
+      await sleep(cap(this.duration+150,450,6500));
       this.clean();
-      window.PSArenaFXDebug={effects:this.effects.length,failedTextures:this.failedTextures};
+      window.PSArenaFXDebug={effects:this.effects.length,failedTextures:this.failedTextures,assetFallbacks:this.assetFallbacks,loadedNative:!!window.PSArenaNativeMoveAnims,at:new Date().toISOString()};
     }
   }
   class Mon{
     constructor(img,s,front){
       this.img=img;this.s=s;this.isFrontSprite=front;this.x=front?105:-105;this.y=front?70:0;this.z=0;this.cursor=0;
-      this.state={x:this.x,y:this.y,z:this.z,scale:1,opacity:1};this.$el=dummy();this.animations=[];
+      this.state={x:this.x,y:this.y,z:this.z,scale:1,opacity:1};this.$el=dummy();this.animations=[];this.scene=null;
     }
     behind(n=0){return this.z+(this.isFrontSprite?-n:n);}
     leftof(n=0){return this.x+(this.isFrontSprite?-n:n);}
-    delay(ms){this.cursor+=Number(ms||0)*.85;return this;}
+    delay(ms){this.cursor+=Number(ms||0)*1.25;if(this.scene)this.scene.duration=Math.max(this.scene.duration,this.cursor+100);return this;}
     anim(p={},transition="linear"){
       if(!this.img)return this;
-      const old=this.state,nn={...old,...p},duration=cap((Number(p.time??450))*.85,1,2500),delay=this.cursor;
+      const old=this.state,nn={...old,...p},duration=cap((Number(p.time??450))*1.25,1,4000),delay=this.cursor;
       const pose=v=>{
         const dx=(Number(v.x??this.x)-this.x)*this.s.sx,dy=-(Number(v.y??this.y)-this.y)*this.s.sy;
         return {transform:`translateX(-50%) translate(${dx}px,${dy}px) scale(${cap(Number(v.scale??1),.04,3)})`,opacity:v.opacity??1};
@@ -124,7 +125,7 @@
       };
       if(this.scene)this.scene.timeline.push(startAnimation);
       else startAnimation();
-      this.cursor+=duration;this.state=nn;return this;
+      this.cursor+=duration;this.state=nn;if(this.scene)this.scene.duration=Math.max(this.scene.duration,this.cursor+150);return this;
     }
   }
   async function playNativeMove(meta){
