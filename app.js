@@ -191,7 +191,7 @@ function doAction(c){if(!game||game.finished||processing)return;const who=viewSi
 function formatStatus(p){return p.status?`<span class="status-tag">${STATUS_NAME[p.status]}</span>`:'';}
 // Visual assets are loaded on demand, not redistributed in this repository.
 // Sources: Pokémon Showdown CDN, PokeAPI sprites and community sprite mirrors for fallback.
-const SPRITE_CDN='https://play.pokemonshowdown.com/sprites/';
+const SPRITE_CDN='/assets/showdown/sprites/';
 const POKE_SPRITES='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 const CHAMPIONS_MIRROR='https://raw.githubusercontent.com/KevinToodlepoot/pokemon-champions-sprites/main/sprites/';
 let spriteStyle='champions',shinySprites=false;const BATTLE_FIELDS=[['Wallace • ORAS','sprites/gen6bgs/bg-leaderwallace.png'],['Cidade • ORAS','sprites/gen6bgs/bg-aquacordetown.png'],['Mar • ORAS','sprites/gen6bgs/bg-orassea.png'],['Meadow • Gen 6','sprites/gen6bgs/bg-meadow.jpg'],['Floresta • Gen 6','sprites/gen6bgs/bg-forest.jpg'],['Deserto • Gen 6','sprites/gen6bgs/bg-desert.jpg'],['Caverna • Gen 6','sprites/gen6bgs/bg-dampcave.jpg'],['Praia • Gen 6','sprites/gen6bgs/bg-beach.jpg']];let battlefieldIndex=0;function cycleBattlefield(){battlefieldIndex=(battlefieldIndex+1)%BATTLE_FIELDS.length;syncBattlefieldVisuals();}
@@ -304,7 +304,7 @@ function toggleShinySprites(){shinySprites=!shinySprites;
  lastTeamRender='';render();updateSpriteControls();}
 function syncBattlefieldVisuals(own,opp){
  const field=$('battlefield');if(!field)return;
- field.dataset.visual=spriteStyle;field.style.setProperty('--battle-bg',`url(https://play.pokemonshowdown.com/${BATTLE_FIELDS[battlefieldIndex][1]})`);const b=$('sceneStyle');if(b)b.textContent='Campo: '+BATTLE_FIELDS[battlefieldIndex][0];
+ field.dataset.visual=spriteStyle;field.style.setProperty('--battle-bg',`url(/assets/showdown/${BATTLE_FIELDS[battlefieldIndex][1]})`);const b=$('sceneStyle');if(b)b.textContent='Campo: '+BATTLE_FIELDS[battlefieldIndex][0];
  const caption=field.querySelector('.scene-caption');
  if(caption){
   const playerType=own?.types?.[0]||'Normal';
@@ -371,7 +371,7 @@ function openSwitchModal(){if(!game||game.finished||processing||queue[viewSide])
 const MOVE_FX={flamethrower:'fireball',fireblast:'flareball',flareblitz:'flareball',pyroball:'fireball',torchsong:'flareball',bitterblade:'fireball',hydropump:'waterwisp',surf:'waterwisp',waterfall:'waterwisp',watershuriken:'waterwisp',thunderbolt:'lightning',thunder:'lightning',voltswitch:'electroball',overdrive:'electroball',leafblade:'leaf1',gigadrain:'energyball',woodhammer:'leaf2',flowertrick:'petal',icebeam:'iceball',icefang:'icicle',shadowball:'shadowball',shadowclaw:'leftclaw',shadowsneak:'purplewisp',psychic:'mistball',psychocut:'purplewisp',aurasphere:'energyball',closecombat:'fist',drainpunch:'fist1',earthquake:'rock1',earthpower:'rock2',stoneedge:'rock3',rockslide:'rock2',dragondarts:'flareball',dragonclaw:'rightclaw',dragonpulse:'bluefireball',moonblast:'shine',moonlight:'moon',dazzlinggleam:'rainbow',gigatonhammer:'greenmetal1',ironhead:'greenmetal2',irontail:'greenmetal2',meteormash:'impact',flashcannon:'shine',bravebird:'feather',hurricane:'feather',airslash:'feather',sludgebomb:'poisonwisp',bugbuzz:'sound',uturn:'rightslash',swordsdance:'sword',calmmind:'shine',dragondance:'sword',protect:'shield',recover:'heart',rest:'heart'};
 const TYPE_FX={Normal:'impact',Fire:'fireball',Water:'waterwisp',Electric:'lightning',Grass:'leaf1',Ice:'iceball',Fighting:'fist',Poison:'poisonwisp',Ground:'rock1',Flying:'feather',Psychic:'mistball',Bug:'web',Rock:'rock3',Ghost:'shadowball',Dragon:'bluefireball',Dark:'blackwisp',Steel:'greenmetal1',Fairy:'rainbow'};
 function moveFxName(name,type){return MOVE_FX[String(name||'').toLowerCase().replace(/[^a-z]/g,'')]||TYPE_FX[type]||'impact';}
-function moveFxUrl(name,type){let fx=moveFxName(name,type);if(fx==='shield')fx='shine';return 'https://play.pokemonshowdown.com/fx/'+fx+'.png';}
+function moveFxUrl(name,type){let fx=moveFxName(name,type);if(fx==='shield')fx='shine';return '/assets/showdown/fx/'+fx+'.png';}
 
 function effectSpriteData(type,color){
  const stroke='rgba(255,255,255,.92)';
@@ -514,4 +514,24 @@ async function cloudSaveBattle(){
  }catch(e){console.warn('Cloud history:',e.message);}
 }
 $('openCloud').onclick=openCloudModal;cloudStatus();$('startPve').onclick=()=>start('pve');$('startLocal').onclick=()=>start('local');$('openOnline').onclick=openOnlineModal;$('openTeam').onclick=openTeamModal;$('editSquad').onclick=openTeamModal;$('railTeam').onclick=openTeamModal;$('railHelp').onclick=showAbout;$('modalClose').onclick=closeModal;$('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};$('switchButton').onclick=openSwitchModal;$('resetBattle').onclick=()=>{if(mode==='pve'||mode==='local')start(mode);};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
-$('sceneStyle').onclick=cycleBattlefield;$('spriteStyle').onclick=cycleSpriteStyle;$('shinyToggle').onclick=toggleShinySprites;updateSpriteControls();renderTeam();newGame('pve');
+$('sceneStyle').onclick=cycleBattlefield;$('spriteStyle').onclick=cycleSpriteStyle;$('shinyToggle').onclick=toggleShinySprites;
+const testFx=$('testEffects');
+if(testFx)testFx.onclick=async()=>{
+  if(processing)return;
+  testFx.disabled=true;testFx.textContent='Carregando FX…';
+  const native=window.PSArenaNativeMoveAnims?.moves;
+  if(!native||!window.PSArenaVisuals?.playNativeMove){
+    testFx.textContent='Animações indisponíveis';testFx.disabled=false;return;
+  }
+  try{
+    const success=await window.PSArenaVisuals.playNativeMove({who:viewSide,target:1-viewSide,move:'Flamethrower',category:'special'});
+    const info=window.PSArenaFXDebug;
+    testFx.textContent=info?.failedTextures?'Falha no carregamento de FX':success&&info?.effects?'✓ '+info.effects+' efeitos exibidos':'Nenhum efeito encontrado';
+    testFx.title=JSON.stringify(info||{});
+  }catch(error){
+    console.error('[Arena] Falha ao executar teste visual:',error);
+    testFx.textContent='Erro na animação';testFx.title=String(error?.message||error);
+  }
+  setTimeout(()=>{testFx.textContent='▶ Testar animação';testFx.disabled=false;},4500);
+};
+updateSpriteControls();renderTeam();newGame('pve');
