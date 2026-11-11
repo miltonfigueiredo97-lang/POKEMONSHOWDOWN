@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/assets/showdown/:path*",
+      "destination": "https://play.pokemonshowdown.com/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/showdown/:path*",
+      "headers": [
+        {
+          "key": "x-vercel-enable-rewrite-caching",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}
