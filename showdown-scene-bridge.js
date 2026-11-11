@@ -94,22 +94,43 @@
     }
     await scene.finish();return used;
   }
-  async function playNativeSwitch(who,view,nextGame,update){
-    const s=stage();if(!s)return false;
-    const enemy=who!==view;
-    const sprite=$(enemy?"opponentSprite":"playerSprite");if(!sprite)return false;
-    const x=s.width*(enemy?.68:.31),y=s.height*(enemy?.47:.76);
-    const ball=document.createElement("img");ball.className="ps-native-ball";ball.alt="";ball.src=FX+"pokeball.png";
-    ball.style.left=x+"px";ball.style.top=y+"px";s.area.append(ball);
-    const scene=new Scene(s);
-    scene.showEffect("shine",{x:enemy?110:-110,y:enemy?70:0,scale:.15,opacity:.3,time:150},{scale:1.6,opacity:0,time:400},"decel","fade");
-    const recall=sprite.animate([{transform:"translateX(-50%) scale(1)",opacity:1},{transform:"translateX(-50%) scale(.08)",opacity:0,filter:"brightness(3)"}],{duration:240,fill:"forwards"});
-    const motion=ball.animate([{transform:"translate(-50%,-50%) translate(-52px,45px) scale(.7) rotate(-60deg)",opacity:0},{transform:"translate(-50%,-50%) translate(0,-30px) scale(1.15) rotate(50deg)",opacity:1,offset:.42},{transform:"translate(-50%,-50%) scale(.85) rotate(180deg)",opacity:1,offset:.7},{transform:"translate(-50%,-50%) scale(1.4) rotate(225deg)",opacity:0}],{duration:650,fill:"forwards",easing:"ease-out"});
-    await sleep(280);try{recall.cancel();}catch{}
-    if(typeof update==="function")update(nextGame);
-    const replacement=$(enemy?"opponentSprite":"playerSprite");
-    if(replacement)replacement.animate([{transform:"translateX(-50%) scale(.1)",opacity:0,filter:"brightness(3)"},{transform:"translateX(-50%) scale(1.13)",opacity:1,offset:.7},{transform:"translateX(-50%) scale(1)",opacity:1}],{delay:70,duration:370,fill:"none",easing:"ease-out"});
-    await sleep(420);try{motion.cancel();}catch{} ball.remove();return true;
+  async function playNativeSwitch(who,view,nextGame,update) {
+  const s=stage();if(!s)return false;
+  const front=who!==view;
+  const sprite=$(front?"opponentSprite":"playerSprite");
+  if(!sprite)return false;
+  const mon=new Mon(sprite,s,front);
+  const out=new Scene(s);
+  // Pokémon Showdown PokemonSprite.animUnsummon (same scale/position/timings).
+  const recall=sprite.animate([
+    {transform:"translateX(-50%) translateY(0px) scale(1)",opacity:1},
+    {transform:"translateX(-50%) translateY(40px) scale(0)",opacity:0}
+  ],{duration:400,easing:"ease-in",fill:"forwards"});
+  out.showEffect("pokeball",{
+    x:mon.x,y:mon.y-40,z:mon.z,scale:.7,opacity:1,time:300
+  },{
+    x:mon.x,y:mon.y,z:mon.behind(50),scale:.7,opacity:0,time:700
+  },"ballistic2");
+  await sleep(415);
+  try{recall.cancel()}catch{}
+  if(typeof update==="function")update(nextGame);
+  const incoming=$(front?"opponentSprite":"playerSprite");
+  if(incoming){
+    // Pokémon Showdown PokemonSprite.animSummon, using actual PS pokeball FX.
+    const intro=new Scene(s);
+    intro.showEffect("pokeball",{
+      x:mon.x,y:mon.y+30,z:mon.behind(50),scale:.7,opacity:0,time:0
+    },{
+      x:mon.x,y:mon.y-10,z:mon.z,scale:.7,opacity:1,time:300
+    },"ballistic2","fade");
+    incoming.animate([
+      {transform:"translateX(-50%) translateY(10px) scale(0)",opacity:0},
+      {transform:"translateX(-50%) translateY(-30px) scale(1)",opacity:1,offset:.62},
+      {transform:"translateX(-50%) translateY(0px) scale(1)",opacity:1}
+    ],{delay:300,duration:700,easing:"ease-out",fill:"none"});
   }
+  await sleep(1020);
+  return true;
+}
   window.PSArenaVisuals={playNativeMove,playNativeSwitch,stage};
 })();
