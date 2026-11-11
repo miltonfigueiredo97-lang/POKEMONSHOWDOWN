@@ -49,10 +49,10 @@
           if(!img.dataset.fxFallback){
             this.assetFallbacks++;
             img.dataset.fxFallback="1";
-            img.src=FX+"impact.png";
+            img.src=window.PSArenaLocalEffects?.["impact.png"]||FX+"impact.png";
           }else finish(false);
         };
-        img.src=FX+url;
+        img.src=window.PSArenaLocalEffects?.[url]||FX+url;
       });
       this.pendingImages.push(ready);
       const a={x:0,y:0,z:0,scale:1,opacity:1,...start},b={...a,...end};
@@ -99,7 +99,7 @@
       await this.start();
       await sleep(cap(this.duration+150,450,6500));
       this.clean();
-      window.PSArenaFXDebug={effects:this.effects.length,failedTextures:this.failedTextures,assetFallbacks:this.assetFallbacks,loadedNative:!!window.PSArenaNativeMoveAnims,at:new Date().toISOString()};
+      window.PSArenaFXDebug={effects:this.effects.length,failedTextures:this.failedTextures,assetFallbacks:this.assetFallbacks,localTextureCount:Object.keys(window.PSArenaLocalEffects||{}).length,loadedNative:!!window.PSArenaNativeMoveAnims,at:new Date().toISOString()};
     }
   }
   class Mon{
