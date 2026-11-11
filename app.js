@@ -80,6 +80,8 @@ const ROWS=[
  ['Gallade',475,'Psychic/Fighting',68,125,65,65,115,80,'Psycho Cut','Close Combat','Leaf Blade','Swords Dance'],
  ['Excadrill',530,'Ground/Steel',110,135,60,50,65,88,'Earthquake','Iron Head','Rock Slide','Swords Dance']
 ];
+// Restore moves selected in the separate team builder, with PokéAPI PP, accuracy, power and category.
+try{const savedMoves=JSON.parse(localStorage.getItem('arena-extra-moves')||'{}');if(savedMoves&&typeof savedMoves==='object')for(const [name,entry] of Object.entries(savedMoves)){if(/^[\w '-]{1,70}$/.test(name)&&Array.isArray(entry)&&entry.length>=4&&['physical','special','status'].includes(entry[2])&&TYPE_COLORS[entry[0]])MOVES[name]=entry;}}catch{}
 const DEX=ROWS.map(([name,id,types,hp,atk,def,spa,spd,spe,...moves])=>({name,id,slug:name.toLowerCase().replace(/[^a-z0-9]+/g,''),types:types.split('/'),hp,atk,def,spa,spd,spe,moves}));
 const LOOKUP=new Map(DEX.map(p=>[p.id,p]));
 function restoreExtraDex(){try{const cached=JSON.parse(localStorage.getItem('arena-extra-dex')||'[]');if(!Array.isArray(cached))return;for(const p of cached.slice(0,2200)){if(!Number.isInteger(p.id)||!Array.isArray(p.moves)||p.moves.length!==4||p.moves.some(m=>!MOVES[m])||LOOKUP.has(p.id))continue;DEX.push(p);LOOKUP.set(p.id,p);}}catch{}}
@@ -97,38 +99,61 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const pct=p=>Math.max(0,Math.min(100,Math.round(p.hp/p.maxHp*100)));
 const anyAlive=s=>s.team.some(p=>p.hp>0);
 const active=s=>s.team[s.active];
-function makePoke(id){const p=LOOKUP.get(id);const maxHp=Math.floor((2*p.hp+31+0)*50/100)+50+10;return {...p,maxHp,hp:maxHp,status:null,sleep:0,stages:{atk:0,def:0,spa:0,spd:0,spe:0},protect:false,lastMove:null,pps:p.moves.map(m=>MOVES[m]?.[2]==='status'?10:15)};}
-function side(name,ids){return {name,active:0,team:ids.map(makePoke)};}
+const NATURES_MOD={Hardy:[],Lonely:['atk','def'],Brave:['atk','spe'],Adamant:['atk','spa'],Naughty:['atk','spd'],Bold:['def','atk'],Docile:[],Relaxed:['def','spe'],Impish:['def','spa'],Lax:['def','spd'],Timid:['spe','atk'],Hasty:['spe','def'],Serious:[],Jolly:['spe','spa'],Naive:['spe','spd'],Modest:['spa','atk'],Mild:['spa','def'],Quiet:['spa','spe'],Bashful:[],Rash:['spa','spd'],Calm:['spd','atk'],Gentle:['spd','def'],Sassy:['spd','spe'],Careful:['spd','spa'],Quirky:[]};
+function savedBuilds(){try{const a=JSON.parse(localStorage.getItem('arena-team-builds')||'[]');return Array.isArray(a)?a:[];}catch{return [];}}
+function makePoke(id,config=null){const p=LOOKUP.get(id);if(!p)throw Error('Pokémon ainda não carregado: '+id);const c=config?.id===id?config:null;const level=Math.max(1,Math.min(100,c?.level||50));
+ const nature=c?.nature||'Serious', mods=NATURES_MOD[nature]||[];
+ const values={};for(const k of ['hp','atk','def','spa','spd','spe']){
+  const b=p[k],iv=Math.max(0,Math.min(31,c?.ivs?.[k]??31)),ev=Math.max(0,Math.min(252,c?.evs?.[k]??0));const raw=Math.floor((2*b+iv+Math.floor(ev/4))*level/100);values[k]=k==='hp'?(p.name==='Shedinja'?1:raw+level+10):Math.floor((raw+5)*(mods[0]===k?1.1:mods[1]===k?.9:1));
+ }
+ const moves=Array.isArray(c?.moves)&&c.moves.length===4&&c.moves.every(m=>MOVES[m])?[...c.moves]:[...p.moves];
+ const maxHp=values.hp;
+ return {...p,...values,level,nature,evs:c?.evs||null,ivs:c?.ivs||null,ability:c?.ability||'',item:c?.item||'',moves,maxHp,hp:maxHp,status:null,sleep:0,stages:{atk:0,def:0,spa:0,spd:0,spe:0},protect:false,lastMove:null,pps:moves.map(m=>MOVES[m]?.[6]|| (MOVES[m]?.[2]==='status'?10:15))};}
+function side(name,ids,isPlayer=false){const builds=isPlayer?savedBuilds():[];return {name,active:0,team:ids.map((id,i)=>makePoke(id,builds[i]))};}
 function randomTeam(exclude=[]){const pool=DEX.map(p=>p.id).filter(id=>!exclude.includes(id));for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}return pool.slice(0,6);}
-function newGame(kind='pve',guestTeam=null){if(kind==='online-host'&&!guestTeam)return;mode=kind;viewSide=0;queue=[null,null];processing=false;feed=[];game={turn:1,finished:false,winner:null,side:[side('Você',selectedTeam),side(kind==='pve'?'Treinador IA':kind==='local'?'Jogador 2':'Convidado',guestTeam||randomTeam(selectedTeam))],message:'A batalha começou! Escolha seu primeiro movimento.'};if(kind==='local'){game.side[0].name='Jogador 1';}elsFeed();render();if(kind==='pve')addFeed('A IA está pronta para o combate.');}
+function newGame(kind='pve',guestTeam=null){if(kind==='online-host'&&!guestTeam)return;mode=kind;viewSide=0;queue=[null,null];processing=false;feed=[];game={turn:1,finished:false,winner:null,side:[side('Você',selectedTeam,true),side(kind==='pve'?'Treinador IA':kind==='local'?'Jogador 2':'Convidado',guestTeam||randomTeam(selectedTeam))],message:'A batalha começou! Escolha seu primeiro movimento.'};if(kind==='local'){game.side[0].name='Jogador 1';}elsFeed();render();if(kind==='pve')addFeed('A IA está pronta para o combate.');}
 function stage(stat){return stat>=0?(2+stat)/2:2/(2-stat);}
 function mult(moveType,defender){return defender.types.reduce((m,t)=>m*(TYPE_MATCH[moveType]?.[t]??1),1);}
 function expected(m,a,d){const [t,power,category,,eff]=MOVES[m];if(category==='status')return eff==='heal'&&a.hp/a.maxHp<.7?90:eff==='swords'||eff==='calm'?38:eff==='par'||eff==='burn'||eff==='sleep'?32:8;const type=mult(t,d);if(!type)return 0;const atk=category==='special'?a.spa:a.atk;const def=category==='special'?d.spd:d.def;return power*atk/def*(a.types.includes(t)?1.5:1)*type;}
 function pickAI(){const a=active(game.side[1]),d=active(game.side[0]);let choices=a.moves.map((m,i)=>({m,i,v:expected(m,a,d)+(Math.random()*12)})).filter(x=>a.pps[x.i]>0);choices.sort((a,b)=>b.v-a.v);if(!choices.length)return{kind:'move',idx:0};const best=choices[0];if((a.hp/a.maxHp<.22||Math.max(...choices.map(x=>x.v))<36)&&game.side[1].team.some((p,i)=>i!==game.side[1].active&&p.hp>0)){const opts=game.side[1].team.map((p,i)=>({p,i,v:p.hp>0&&i!==game.side[1].active?Math.max(...p.moves.map(m=>expected(m,p,d))):0})).sort((a,b)=>b.v-a.v);if(opts[0]&&opts[0].v>best.v*1.6)return {kind:'switch',idx:opts[0].i};}return{kind:'move',idx:best.i};}
 function pushEvent(events,message,meta={}){events.push({message,meta,game:structuredClone(game)});}
-function damage(a,d,m,critical){const [t,power,category]=MOVES[m];const attack=(category==='physical'?a.atk*stage(a.stages.atk):a.spa*stage(a.stages.spa));const defense=Math.max(1,category==='physical'?d.def*stage(d.stages.def):d.spd*stage(d.stages.spd));let value=Math.floor((Math.floor((22*power*attack/defense)/50)+2)*(a.types.includes(t)?1.5:1)*mult(t,d)*(critical?1.5:1)*(.85+Math.random()*.15)*(a.status==='brn'&&category==='physical'?.5:1));return Math.max(1,value);}
+// Core Gen 3+ damage formula, level/IV/EV/nature, STAB, type, burn, critical and random roll.
+// NOTE: This lightweight engine still lacks the full Showdown event/ability/item/weather logic.
+function damage(a,d,m,critical){const [t,power,category]=MOVES[m];
+ let attack=(category==='physical'?a.atk*stage(a.stages.atk):a.spa*stage(a.stages.spa));
+ let defense=Math.max(1,category==='physical'?d.def*stage(d.stages.def):d.spd*stage(d.stages.spd));
+ if(category==='physical'&&a.item==='choice-band')attack*=1.5;
+ if(category==='special'&&a.item==='choice-specs')attack*=1.5;
+ if(category==='special'&&d.item==='assault-vest')defense*=1.5;
+ const level=a.level||50;
+ let val=Math.floor(Math.floor((Math.floor(2*level/5)+2)*power*attack/defense)/50)+2;
+ let modifier=(a.types.includes(t)?(a.ability==='adaptability'?2:1.5):1)*mult(t,d)*(critical?1.5:1)*(.85+Math.random()*.15);
+ if(a.status==='brn'&&category==='physical'&&a.ability!=='guts')modifier*=.5;
+ if(a.item==='life-orb')modifier*=1.3;
+ if(a.item==='expert-belt'&&mult(t,d)>1)modifier*=1.2;
+ return Math.max(1,Math.floor(val*modifier));}
 const STATUS_NAME={par:'PAR',brn:'BRN',psn:'PSN',slp:'SLP'};
 function applyStatus(d,status,events){if(d.status)return false;if(status==='par'&&d.types.includes('Electric'))return false;if(status==='brn'&&d.types.includes('Fire'))return false;if(status==='psn'&&(d.types.includes('Poison')||d.types.includes('Steel')))return false;d.status=status;if(status==='slp')d.sleep=1+Math.floor(Math.random()*3);pushEvent(events,`${d.name} recebeu o estado ${STATUS_NAME[status]}!`,{type:'status'});return true;}
 function useMove(who,idx,events){const own=game.side[who],opp=game.side[1-who],a=active(own),d=active(opp);if(a.hp<=0)return;if(a.status==='slp'){a.sleep--;if(a.sleep>0){pushEvent(events,`${a.name} está dormindo!`);return;}a.status=null;pushEvent(events,`${a.name} acordou!`);}if(a.status==='par'&&Math.random()<.25){pushEvent(events,`${a.name} está paralisado e não conseguiu atacar!`);return;}
  let m=a.moves[idx];if(!m||!MOVES[m]||a.pps[idx]<=0){const fallback=a.pps.findIndex(pp=>pp>0);if(fallback<0){a.hp=Math.max(0,a.hp-12);d.hp=Math.max(0,d.hp-12);pushEvent(events,`${a.name} usou Struggle!`,{who,target:1-who,type:'Normal',attack:true});return;}idx=fallback;m=a.moves[idx];}
  a.pps[idx]--;const [type,power,category,accuracy,effect]=MOVES[m];a.lastMove=m;
  const exempt=category==='status'&&['heal','rest','calm','swords','dragon','bulk','quiver','protect'].includes(effect);
- if(!exempt&&Math.random()*100>=accuracy){pushEvent(events,`${a.name} usou ${m}, mas errou!`,{who,type,attack:true,miss:true,target:1-who});return;}
+ if(!exempt&&Math.random()*100>=accuracy){pushEvent(events,`${a.name} usou ${m}, mas errou!`,{who,type,attack:true,miss:true,target:1-who,move:m});return;}
  if(category==='status'){
-  if(effect==='heal'){const heal=Math.min(a.maxHp-a.hp,Math.floor(a.maxHp*.5));a.hp+=heal;pushEvent(events,`${a.name} usou ${m} e recuperou ${heal} HP.`,{who,type:'Grass',heal:true});}
-  else if(effect==='rest'){a.hp=a.maxHp;a.status='slp';a.sleep=2;pushEvent(events,`${a.name} descansou e restaurou seu HP!`,{who,type:'Psychic',heal:true});}
-  else if(effect==='protect'){a.protect=true;pushEvent(events,`${a.name} se protegeu!`,{who,type,shield:true});}
-  else if(['swords','calm','dragon','bulk','quiver'].includes(effect)){const changes={swords:{atk:2},calm:{spa:1,spd:1},dragon:{atk:1,spe:1},bulk:{atk:1,def:1},quiver:{spa:1,spd:1,spe:1}}[effect];Object.entries(changes).forEach(([s,v])=>a.stages[s]=Math.min(6,a.stages[s]+v));pushEvent(events,`${a.name} usou ${m}! Seus atributos aumentaram.`,{who,type,boost:true});}
-  else{const status={par:'par',burn:'brn',poison:'psn',sleep:'slp'}[effect];if(!applyStatus(d,status,events))pushEvent(events,`${m} não teve efeito em ${d.name}.`);else events[events.length-1].meta={who,type,attack:true,target:1-who};}
+  if(effect==='heal'){const heal=Math.min(a.maxHp-a.hp,Math.floor(a.maxHp*.5));a.hp+=heal;pushEvent(events,`${a.name} usou ${m} e recuperou ${heal} HP.`,{who,type:'Grass',heal:true,move:m});}
+  else if(effect==='rest'){a.hp=a.maxHp;a.status='slp';a.sleep=2;pushEvent(events,`${a.name} descansou e restaurou seu HP!`,{who,type:'Psychic',heal:true,move:m});}
+  else if(effect==='protect'){a.protect=true;pushEvent(events,`${a.name} se protegeu!`,{who,type,shield:true,move:m});}
+  else if(['swords','calm','dragon','bulk','quiver'].includes(effect)){const changes={swords:{atk:2},calm:{spa:1,spd:1},dragon:{atk:1,spe:1},bulk:{atk:1,def:1},quiver:{spa:1,spd:1,spe:1}}[effect];Object.entries(changes).forEach(([s,v])=>a.stages[s]=Math.min(6,a.stages[s]+v));pushEvent(events,`${a.name} usou ${m}! Seus atributos aumentaram.`,{who,type,boost:true,move:m});}
+  else{const status={par:'par',burn:'brn',poison:'psn',sleep:'slp'}[effect];if(!status){pushEvent(events,`${a.name} usou ${m}! Efeito complexo ainda não implementado neste protótipo.`,{who,type,move:m,attack:true,target:who});}else if(!applyStatus(d,status,events))pushEvent(events,`${m} não teve efeito em ${d.name}.`,{who,type,move:m,attack:true,target:1-who});else events[events.length-1].meta={who,type,move:m,attack:true,target:1-who};}
   return;
  }
- if(d.protect){pushEvent(events,`${a.name} usou ${m}, mas ${d.name} estava protegido!`,{who,type,attack:true,target:1-who});return;}
- const eff=mult(type,d);if(eff===0){pushEvent(events,`${a.name} usou ${m}, mas não afetou ${d.name}.`,{who,type,attack:true,target:1-who});return;}
+ if(d.protect){pushEvent(events,`${a.name} usou ${m}, mas ${d.name} estava protegido!`,{who,type,attack:true,target:1-who,move:m});return;}
+ const eff=mult(type,d);if(eff===0){pushEvent(events,`${a.name} usou ${m}, mas não afetou ${d.name}.`,{who,type,attack:true,target:1-who,move:m});return;}
  const crit=effect==='alwayscrit'||Math.random()<.0625;
  const hit=damage(a,d,m,crit);d.hp=Math.max(0,d.hp-hit);
  let suffix=eff>=2?' • Super efetivo!':eff<1?' • Pouco efetivo.':'';if(crit)suffix+=' • Acerto crítico!';
  pushEvent(events,`${a.name} usou ${m}! ${d.name} perdeu ${hit} HP.${suffix}`,{who,target:1-who,type,attack:true,effectiveness:eff,crit,move:m});
- if(effect==='drain'){const heal=Math.min(a.maxHp-a.hp,Math.floor(hit/2));a.hp+=heal;if(heal)pushEvent(events,`${a.name} recuperou ${heal} HP!`,{who,type:'Grass',heal:true});}
+ if(effect==='drain'){const heal=Math.min(a.maxHp-a.hp,Math.floor(hit/2));a.hp+=heal;if(heal)pushEvent(events,`${a.name} recuperou ${heal} HP!`,{who,type:'Grass',heal:true,move:m});}
  if(effect==='recoil'){const recoil=Math.max(1,Math.floor(hit/3));a.hp=Math.max(0,a.hp-recoil);pushEvent(events,`${a.name} sofreu ${recoil} de recuo!`,{who,type:'Normal',hurt:true,target:who});}
  if(effect==='defdrop')a.stages.def=Math.max(-6,a.stages.def-1);
  if(effect==='atkdrop')a.stages.atk=Math.max(-6,a.stages.atk-1);
@@ -152,7 +177,7 @@ function settleTurn(){const events=[],choices=[...queue],acts=[],turnStarters=ga
  if(!game.finished){game.turn++;pushEvent(events,`Turno ${game.turn}. Escolha seu próximo movimento.`,{turn:true});}
  queue=[null,null];return events;
 }
-async function runTurn(){if(processing||!queue[0]||!queue[1]||!game||game.finished)return;processing=true;const before=structuredClone(game);const events=settleTurn();game=before;render();for(const ev of events){if(mode.startsWith('online')&&network.role==='host'&&network.conn?.open){network.conn.send({type:'event',event:ev});}if(ev.meta?.attack)await animateHit(ev.meta);else if(ev.meta?.switch)await animateSwitch(ev.meta);game=ev.game;game.message=ev.message;addFeed(ev.message);if(ev.meta?.end)void cloudSaveBattle();render();await sleep(ev.meta?.attack?320:ev.meta?.end?550:210);}processing=false;if(mode==='local'&&!game.finished)viewSide=0;render();if(mode==='online-host'&&network.conn?.open)network.conn.send({type:'sync',game});}
+async function runTurn(){if(processing||!queue[0]||!queue[1]||!game||game.finished)return;processing=true;const before=structuredClone(game);const events=settleTurn();game=before;render();for(const ev of events){if(mode.startsWith('online')&&network.role==='host'&&network.conn?.open){network.conn.send({type:'event',event:ev});}if(ev.meta?.attack||ev.meta?.boost||ev.meta?.heal||ev.meta?.shield)await animateHit({...ev.meta,target:ev.meta.attack?ev.meta.target:ev.meta.who});else if(ev.meta?.switch)await animateSwitch(ev.meta,ev.game);game=ev.game;game.message=ev.message;addFeed(ev.message);if(ev.meta?.end)void cloudSaveBattle();render();await sleep(ev.meta?.attack?320:ev.meta?.end?550:210);}processing=false;if(mode==='local'&&!game.finished)viewSide=0;render();if(mode==='online-host'&&network.conn?.open)network.conn.send({type:'sync',game});}
 function canAct(who){return game&&!game.finished&&!processing&&!queue[who]&&anyAlive(game.side[who]);}
 function doAction(c){if(!game||game.finished||processing)return;const who=viewSide;
  if(mode==='online-guest'){if(!network.conn?.open)return showMessage('Conexão indisponível.');network.conn.send({type:'action',choice:c});showMessage('Sua escolha foi enviada. Aguardando o adversário...');disableMoves();return;}
@@ -168,7 +193,7 @@ function formatStatus(p){return p.status?`<span class="status-tag">${STATUS_NAME
 const SPRITE_CDN='https://play.pokemonshowdown.com/sprites/';
 const POKE_SPRITES='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 const CHAMPIONS_MIRROR='https://raw.githubusercontent.com/KevinToodlepoot/pokemon-champions-sprites/main/sprites/';
-let spriteStyle='champions',shinySprites=false;
+let spriteStyle='champions',shinySprites=false;const BATTLE_FIELDS=[['Meadow','bg-meadow.png'],['Clássico','bg-gen4.png'],['Floresta','bg-forest.png'],['Cidade','bg-city.png'],['Deserto','bg-desert.png'],['Montanha','bg-mountain.png'],['Caverna','bg-dampcave.png'],['Praia','bg-beach.png']];let battlefieldIndex=0;function cycleBattlefield(){battlefieldIndex=(battlefieldIndex+1)%BATTLE_FIELDS.length;syncBattlefieldVisuals();}
 const spriteCache=new Map();
 const spriteMissing=new Set();
 function spriteSlug(p){return String(p.slug||p.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
@@ -182,18 +207,20 @@ function spriteCandidates(p,back=false,shiny=shinySprites,style=spriteStyle){
  const smogon=SPRITE_CDN+(back?(shiny?'ani-back-shiny/':'ani-back/'):(shiny?'ani-shiny/':'ani/'))+slug+'.gif';
  const gen5=pk('versions/generation-v/black-white/animated/'+(back?'back/':'')+(shiny?'shiny/':'')+id+'.gif');
  const champions=pk('versions/generation-ix/champions/'+(back?'back/':'')+(shiny?'shiny/':'')+id+'.webp');
+ const scarlet=pk('versions/generation-ix/scarlet-violet/'+(back?'back/':'')+(shiny?'shiny/':'')+id+'.webp');
+ const legends=pk('versions/generation-ix/legends-za/'+(back?'back/':'')+(shiny?'shiny/':'')+id+'.webp');
  const png=pk((back?'back/':'')+(shiny?'shiny/':'')+id+'.png');
  const home=pk('other/home/'+(shiny?'shiny/':'')+id+'.png');
  const artwork=pk('other/official-artwork/'+(shiny?'shiny/':'')+id+'.png');
  const championsMirror=!back&&!shiny?CHAMPIONS_MIRROR+slugHyphen+'.png':'';
  if(style==='champions'){
-  add(champions);add(smogon);add(pokeShow);add(gen5);if(!back)add(championsMirror);add(png);
+  add(champions);add(legends);add(scarlet);add(smogon);add(pokeShow);add(gen5);if(!back)add(championsMirror);add(png);
  }else if(style==='hd'){
-  if(back)add(champions);if(back)add(png);add(home);add(artwork);add(champions);add(pokeShow);add(smogon);
+  add(champions);add(legends);add(scarlet);if(back)add(png);if(!back){add(home);add(artwork);}add(pokeShow);add(smogon);
  }else if(style==='pixel'){
-  add(gen5);add(pokeShow);add(smogon);add(champions);add(png);
+  add(gen5);add(pokeShow);add(smogon);add(champions);add(legends);add(scarlet);add(png);
  }else{
-  add(smogon);add(pokeShow);add(champions);add(gen5);add(png);
+  add(smogon);add(pokeShow);add(champions);add(legends);add(scarlet);add(gen5);add(png);
  }
  if(shiny){
   add(pk('versions/generation-ix/champions/'+(back?'back/':'')+id+'.webp'));
@@ -263,21 +290,22 @@ function toggleShinySprites(){shinySprites=!shinySprites;
  lastTeamRender='';render();updateSpriteControls();}
 function syncBattlefieldVisuals(own,opp){
  const field=$('battlefield');if(!field)return;
- field.dataset.visual=spriteStyle;
+ field.dataset.visual=spriteStyle;field.style.setProperty('--battle-bg',`url(https://play.pokemonshowdown.com/fx/${BATTLE_FIELDS[battlefieldIndex][1]})`);const b=$('sceneStyle');if(b)b.textContent='Campo: '+BATTLE_FIELDS[battlefieldIndex][0];
  const caption=field.querySelector('.scene-caption');
  if(caption){
   const playerType=own?.types?.[0]||'Normal';
   const enemyType=opp?.types?.[0]||'Normal';
-  caption.innerHTML=`<span>◉</span> CHAMPIONS FIELD <span class="scene-weather">${playerType} / ${enemyType}</span>`;
+  caption.innerHTML=`<span>◉</span> SHOWDOWN • ${BATTLE_FIELDS[battlefieldIndex][0]} <span class="scene-weather">${playerType} / ${enemyType}</span>`;
  }
  for(const id of ['playerSprite','opponentSprite'])syncSpriteClass($(id));
 }
-function displayInfo(prefix,p){$(prefix+'Name').textContent=p.name;$(prefix+'Level').textContent='Lv. 50';const amount=pct(p),fill=$(prefix+'Hp');fill.style.width=amount+'%';fill.className='meter-fill'+(amount<22?' danger':amount<50?' warning':'');$(prefix+'Pct').textContent=amount+'%';$(prefix+'Status').innerHTML=formatStatus(p);}
+function detailStatValue(p,k){const v=p[k]||0;const boost=p.stages?.[k]||0;const effective=Math.floor(v*stage(boost)*(k==='spe'&&p.status==='par'?.5:1));return effective+(boost?` (${boost>0?'+':''}${boost})`:'');}
+function displayInfo(prefix,p){$(prefix+'Name').textContent=p.name;$(prefix+'Level').textContent='Lv. 50';const amount=pct(p),fill=$(prefix+'Hp');fill.style.width=amount+'%';fill.className='meter-fill'+(amount<22?' danger':amount<50?' warning':'');$(prefix+'Pct').textContent=amount+'%';$(prefix+'Status').innerHTML=formatStatus(p);const info=$(prefix+'Info');let stats=info?.querySelector('.battle-stats-info');if(info&&!stats){stats=document.createElement('div');stats.className='battle-stats-info';info.append(stats);}if(stats)stats.innerHTML=`<div class="battle-stats-brief"><span>ATK ${detailStatValue(p,'atk')}</span><span>DEF ${detailStatValue(p,'def')}</span><span>SPA ${detailStatValue(p,'spa')}</span><span>SPD ${detailStatValue(p,'spd')}</span><strong>SPE ${detailStatValue(p,'spe')}</strong></div><div class="battle-detail">${p.ability?'Habilidade: '+escapeHTML(p.ability):'Habilidade: —'} · ${p.item?'Item: '+escapeHTML(p.item):'Sem item'}</div>`;}
 function render(){renderTeam();if(!game)return;const own=active(game.side[viewSide]),opp=active(game.side[1-viewSide]);displayInfo('player',own);displayInfo('opponent',opp);syncBattlefieldVisuals(own,opp);setSprite($('playerSprite'),own,true);setSprite($('opponentSprite'),opp,false);$('battleHeading').textContent='BATALHA • '+(mode==='pve'?'PVE / IA':mode==='local'?'PVP LOCAL':'PVP ONLINE');$('turnLabel').textContent='TURNO '+String(game.turn).padStart(2,'0');$('battleMessage').textContent=game.message||'Escolha sua ação.';$('resetBattle').disabled=mode.startsWith('online')||mode==='none';$('switchButton').disabled=!canAct(viewSide)||mode==='online-guest'&&!network.conn?.open;$('actionHint').textContent=game.finished?'Batalha concluída':mode==='local'?game.side[viewSide].name+' • Escolha uma ação':mode.startsWith('online')?'Sala entre amigos':'Sua vez • Selecione o ataque';renderActions();}
 function showMessage(msg){if(game)game.message=msg;$('battleMessage').textContent=msg;}
 function renderActions(){const target=$('battleActions');if(!game)return;const p=active(game.side[viewSide]);if(game.finished){const win=game.winner===viewSide;target.innerHTML=`<div class="result-message"><strong>${game.winner===-1?'Empate!':win?'🏆 Vitória!':'Fim da batalha'}</strong><small>${win?'Sua equipe venceu a batalha!':'Você pode tentar novamente.'}</small></div>`;return;}
  if(processing||queue[viewSide]){target.innerHTML='<div class="placeholder-actions">◷ Aguardando o próximo turno...</div>';return;}
- target.innerHTML=p.moves.map((name,i)=>{const m=MOVES[name],type=m[0],pp=p.pps[i];return `<button class="move-btn" data-move="${i}" ${pp<=0?'disabled':''} title="${m[2]==='status'?'Movimento de suporte':'Poder '+m[1]+' • Precisão '+m[3]+'%'}"><span class="type-bubble" style="--type-color:${TYPE_COLORS[type]}"></span><span class="move-label">${escapeHTML(name)}</span><span class="move-detail">${pp}/${MOVES[name]?.[2]==='status'?10:15} PP</span></button>`;}).join('');
+ target.innerHTML=p.moves.map((name,i)=>{const m=MOVES[name],type=m[0],pp=p.pps[i];return `<button class="move-btn" data-move="${i}" ${pp<=0?'disabled':''} title="${m[2]==='status'?'Movimento de suporte':'Poder '+m[1]+' • Precisão '+m[3]+'%'}"><img class="attack-icon" src="${moveFxUrl(name,type)}" alt="" loading="lazy"><span class="type-bubble" style="--type-color:${TYPE_COLORS[type]}"></span><span class="move-label">${escapeHTML(name)}</span><span class="move-detail">${pp}/${MOVES[name]?.[6]||(MOVES[name]?.[2]==='status'?10:15)} PP</span></button>`;}).join('');
  target.querySelectorAll('[data-move]').forEach(b=>b.addEventListener('click',()=>doAction({kind:'move',idx:+b.dataset.move})));}
 function disableMoves(){$('battleActions').querySelectorAll('button').forEach(b=>b.disabled=true);}
 function addFeed(s){feed.unshift(s);feed=feed.slice(0,35);elsFeed();}
@@ -307,7 +335,7 @@ async function loadNationalDexIndex(){
  })().catch(err=>{dexIndexPromise=null;console.warn('Catálogo nacional indisponível:',err.message);return []});
  return dexIndexPromise;
 }
-function openTeamModal(){editingTeam=[...selectedTeam];showModal('Monte sua equipe',`<div class="modal-copy">Escolha exatamente seis Pokémon. São <strong>${DEX.length} Pokémon prontos</strong> e um catálogo nacional pesquisável pela PokéAPI (internet necessária para carregar novas espécies). A equipe fica salva neste navegador.</div><div class="search-area"><input id="monSearch" placeholder="Pesquisar Pokémon..." aria-label="Pesquisar Pokémon"></div><div class="api-import"><input class="room-input" id="apiPokemon" placeholder="Qualquer Pokémon pelo nome em inglês ou número..."><button id="loadPokemon" class="secondary-btn">Buscar na PokéAPI</button></div><div class="api-feedback" id="apiFeedback">Não está na lista? Busque pela PokéAPI para adicionar outras espécies (requer internet).</div><div class="squad-picker" id="monPicker"></div><div class="selected-list" id="selectedList"></div><div class="modal-actions"><button id="cancelTeam" class="secondary-btn">Cancelar</button><button id="saveTeam" class="primary-btn">Salvar equipe (6/6)</button></div>`);$('monSearch').addEventListener('input',paintPicker);$('loadPokemon').onclick=fetchCustomPokemon;$('apiPokemon').onkeydown=e=>{if(e.key==='Enter')void fetchCustomPokemon();};$('cancelTeam').onclick=closeModal;$('saveTeam').onclick=()=>{if(editingTeam.length===6)saveTeam();};paintPicker();void loadNationalDexIndex();}
+function openTeamModal(){location.href='./team.html';return;editingTeam=[...selectedTeam];showModal('Monte sua equipe',`<div class="modal-copy">Escolha exatamente seis Pokémon. São <strong>${DEX.length} Pokémon prontos</strong> e um catálogo nacional pesquisável pela PokéAPI (internet necessária para carregar novas espécies). A equipe fica salva neste navegador.</div><div class="search-area"><input id="monSearch" placeholder="Pesquisar Pokémon..." aria-label="Pesquisar Pokémon"></div><div class="api-import"><input class="room-input" id="apiPokemon" placeholder="Qualquer Pokémon pelo nome em inglês ou número..."><button id="loadPokemon" class="secondary-btn">Buscar na PokéAPI</button></div><div class="api-feedback" id="apiFeedback">Não está na lista? Busque pela PokéAPI para adicionar outras espécies (requer internet).</div><div class="squad-picker" id="monPicker"></div><div class="selected-list" id="selectedList"></div><div class="modal-actions"><button id="cancelTeam" class="secondary-btn">Cancelar</button><button id="saveTeam" class="primary-btn">Salvar equipe (6/6)</button></div>`);$('monSearch').addEventListener('input',paintPicker);$('loadPokemon').onclick=fetchCustomPokemon;$('apiPokemon').onkeydown=e=>{if(e.key==='Enter')void fetchCustomPokemon();};$('cancelTeam').onclick=closeModal;$('saveTeam').onclick=()=>{if(editingTeam.length===6)saveTeam();};paintPicker();void loadNationalDexIndex();}
 async function fetchCustomPokemon(queryOverride=null){const input=$('apiPokemon'),status=$('apiFeedback');const query=String(queryOverride||input.value).trim().toLowerCase().replace(/\s+/g,'-');if(!/^[a-z0-9-]{1,40}$/.test(query)){status.textContent='Digite um nome inglês ou número válido.';return;}const button=$('loadPokemon');button.disabled=true;status.textContent='Consultando a PokéAPI...';try{const response=await fetch('https://pokeapi.co/api/v2/pokemon/'+encodeURIComponent(query),{signal:AbortSignal.timeout(10000)});if(!response.ok)throw new Error('Pokémon não encontrado. Confira nome ou número.');const data=await response.json();let p=LOOKUP.get(data.id);if(!p){const stat=k=>data.stats.find(s=>s.stat.name===k)?.base_stat||70;const moveIds=new Set(data.moves.map(m=>m.move.name.replace(/[^a-z0-9]/g,'')));const attacks=Object.keys(MOVES).filter(m=>moveIds.has(m.toLowerCase().replace(/[^a-z0-9]/g,'')));attacks.sort((a,b)=>(MOVES[b][1]||0)-(MOVES[a][1]||0));const chosen=[];for(const m of attacks){if(chosen.length===4)break;if(!chosen.some(x=>MOVES[x][0]===MOVES[m][0]&&MOVES[x][2]===MOVES[m][2]))chosen.push(m);}for(const m of attacks){if(chosen.length===4)break;if(!chosen.includes(m))chosen.push(m);}for(const m of ['Tackle','Swift','Protect','Rest']){if(chosen.length===4)break;if(!chosen.includes(m))chosen.push(m);}p={id:data.id,name:data.name.split('-').map(x=>x[0].toUpperCase()+x.slice(1)).join(' '),slug:data.name,types:data.types.map(t=>t.type.name[0].toUpperCase()+t.type.name.slice(1)),hp:stat('hp'),atk:stat('attack'),def:stat('defense'),spa:stat('special-attack'),spd:stat('special-defense'),spe:stat('speed'),moves:chosen.slice(0,4)};DEX.push(p);LOOKUP.set(p.id,p);saveExtraDex();}if(!editingTeam.includes(p.id)&&editingTeam.length<6)editingTeam.push(p.id);$('monSearch').value=p.name;paintPicker();status.textContent=p.name+' carregado. Use a lista para incluí-lo na equipe.';}catch(err){status.textContent='Não foi possível carregar: '+err.message;}finally{button.disabled=false;}}
 function paintPicker(){
  if(!$('monPicker'))return;
@@ -324,6 +352,13 @@ function paintPicker(){
  $('saveTeam').textContent=`Salvar equipe (${editingTeam.length}/6)`;$('saveTeam').disabled=editingTeam.length!==6;
 }
 function openSwitchModal(){if(!game||game.finished||processing||queue[viewSide])return;const s=game.side[viewSide];showModal('Trocar Pokémon',`<div class="modal-copy">Escolha um Pokémon saudável para entrar na batalha. A troca consome a sua ação do turno.</div><div class="switch-grid">${s.team.map((p,i)=>`<button class="switch-mon" data-switch="${i}" ${(i===s.active||p.hp<=0)?'disabled':''}><img alt=""><strong>${p.name}</strong><small>${p.hp>0?pct(p)+'% HP':'Desmaiado'}</small></button>`).join('')}</div>`);$('modalContent').querySelectorAll('[data-switch]').forEach(b=>{fallbackThumb(b.querySelector('img'),s.team[+b.dataset.switch]);b.onclick=()=>doAction({kind:'switch',idx:+b.dataset.switch});});}
+// Sprites realmente presentes no CDN /fx/ do Showdown. Todos os golpes usam textura
+// (algumas se repetem); coreografias individualizadas ainda não são completas.
+const MOVE_FX={flamethrower:'fireball',fireblast:'flareball',flareblitz:'flareball',pyroball:'fireball',torchsong:'flareball',bitterblade:'fireball',hydropump:'waterwisp',surf:'waterwisp',waterfall:'waterwisp',watershuriken:'waterwisp',thunderbolt:'lightning',thunder:'lightning',voltswitch:'electroball',overdrive:'electroball',leafblade:'leaf1',gigadrain:'energyball',woodhammer:'leaf2',flowertrick:'petal',icebeam:'iceball',icefang:'icicle',shadowball:'shadowball',shadowclaw:'leftclaw',shadowsneak:'purplewisp',psychic:'mistball',psychocut:'purplewisp',aurasphere:'energyball',closecombat:'fist',drainpunch:'fist1',earthquake:'rock1',earthpower:'rock2',stoneedge:'rock3',rockslide:'rock2',dragondarts:'flareball',dragonclaw:'rightclaw',dragonpulse:'bluefireball',moonblast:'shine',moonlight:'moon',dazzlinggleam:'rainbow',gigatonhammer:'greenmetal1',ironhead:'greenmetal2',irontail:'greenmetal2',meteormash:'impact',flashcannon:'shine',bravebird:'feather',hurricane:'feather',airslash:'feather',sludgebomb:'poisonwisp',bugbuzz:'sound',uturn:'rightslash',swordsdance:'sword',calmmind:'shine',dragondance:'sword',protect:'shield',recover:'heart',rest:'heart'};
+const TYPE_FX={Normal:'impact',Fire:'fireball',Water:'waterwisp',Electric:'lightning',Grass:'leaf1',Ice:'iceball',Fighting:'fist',Poison:'poisonwisp',Ground:'rock1',Flying:'feather',Psychic:'mistball',Bug:'web',Rock:'rock3',Ghost:'shadowball',Dragon:'bluefireball',Dark:'blackwisp',Steel:'greenmetal1',Fairy:'rainbow'};
+function moveFxName(name,type){return MOVE_FX[String(name||'').toLowerCase().replace(/[^a-z]/g,'')]||TYPE_FX[type]||'impact';}
+function moveFxUrl(name,type){let fx=moveFxName(name,type);if(fx==='shield')fx='shine';return 'https://play.pokemonshowdown.com/fx/'+fx+'.png';}
+
 function effectSpriteData(type,color){
  const stroke='rgba(255,255,255,.92)';
  const fill=color||'#fff';
@@ -352,9 +387,9 @@ function effectSpriteData(type,color){
 }
 function spawnImpact(wrap,x,y,color){const hit=document.createElement('span');hit.className='fx-impact';hit.style.left=x+'px';hit.style.top=y+'px';hit.style.setProperty('--impact-color',color);wrap.append(hit);setTimeout(()=>hit.remove(),420);}
 function spawnSwitchBurst(wrap,x,y){const ring=document.createElement('span');ring.className='switch-burst';ring.style.left=x+'px';ring.style.top=y+'px';wrap.append(ring);setTimeout(()=>ring.remove(),450);}
-async function animateSwitch(meta){const wrap=$('effects');const sprite=meta.who===viewSide?$('playerSprite'):$('opponentSprite');const rect=wrap.getBoundingClientRect();const x=meta.who===viewSide?rect.width*.28:rect.width*.76;const y=meta.who===viewSide?rect.height*.73:rect.height*.48;spawnSwitchBurst(wrap,x,y);sprite.classList.add('sprite-switch-out');await sleep(230);sprite.classList.remove('sprite-switch-out');sprite.classList.add('sprite-switch-in');spawnSwitchBurst(wrap,x,y);setTimeout(()=>sprite.classList.remove('sprite-switch-in'),360);await sleep(340);}
+async function animateSwitch(meta,nextGame=null){const wrap=$('effects');const sprite=meta.who===viewSide?$('playerSprite'):$('opponentSprite');const rect=wrap.getBoundingClientRect();const x=meta.who===viewSide?rect.width*.28:rect.width*.76;const y=meta.who===viewSide?rect.height*.73:rect.height*.48;spawnSwitchBurst(wrap,x,y);sprite.classList.add('sprite-switch-out');await sleep(230);sprite.classList.remove('sprite-switch-out');if(nextGame){game=nextGame;render();}sprite.classList.add('sprite-switch-in');spawnSwitchBurst(wrap,x,y);setTimeout(()=>sprite.classList.remove('sprite-switch-in'),360);await sleep(340);}
 async function animateHit(meta){const wrap=$('effects');const target=meta.target===viewSide?$('playerSprite'):$('opponentSprite');const attacker=meta.who===viewSide?$('playerSprite'):$('opponentSprite');if(!meta.miss){attacker.classList.add('attack-lunge');setTimeout(()=>attacker.classList.remove('attack-lunge'),480);}const color=TYPE_COLORS[meta.type]||'#ffffff';const rect=wrap.getBoundingClientRect();const startX=meta.who===viewSide?rect.width*.28:rect.width*.76,startY=meta.who===viewSide?rect.height*.73:rect.height*.48;let x=meta.target===viewSide?rect.width*.23:rect.width*.73,y=meta.target===viewSide?rect.height*.67:rect.height*.48;
- const sprite=document.createElement('span');sprite.className='fx-sprite';sprite.style.left='0px';sprite.style.top='0px';sprite.style.backgroundImage=`url(${effectSpriteData(meta.type,color)})`;sprite.style.setProperty('--from-x',`${startX}px`);sprite.style.setProperty('--from-y',`${startY}px`);sprite.style.setProperty('--to-x',`${x}px`);sprite.style.setProperty('--to-y',`${y}px`);wrap.append(sprite);setTimeout(()=>sprite.remove(),520);
+ const sprite=document.createElement('span');sprite.className='fx-sprite';sprite.style.left='0px';sprite.style.top='0px';sprite.style.backgroundImage=`url(\"${moveFxUrl(meta.move,meta.type)}\")`;sprite.style.setProperty('--from-x',`${startX}px`);sprite.style.setProperty('--from-y',`${startY}px`);sprite.style.setProperty('--to-x',`${x}px`);sprite.style.setProperty('--to-y',`${y}px`);wrap.append(sprite);setTimeout(()=>sprite.remove(),520);
  for(let i=0;i<18;i++){const particle=document.createElement('span');particle.className='fx-particle';const size=4+Math.random()*11;const angle=Math.random()*Math.PI*2;particle.style.cssText=`left:${x}px;top:${y}px;width:${size}px;height:${size}px;background:${color};color:${color};--x:${Math.cos(angle)*(24+Math.random()*72)}px;--y:${Math.sin(angle)*(24+Math.random()*72)}px;--dur:${420+Math.random()*260}ms`;wrap.append(particle);setTimeout(()=>particle.remove(),900);}spawnImpact(wrap,x,y,color);if(!meta.miss){target.classList.add('hit-flash');setTimeout(()=>target.classList.remove('hit-flash'),420);}if(meta.effectiveness>=2||meta.crit){const pop=document.createElement('div');pop.className='fx-pop';pop.textContent=meta.crit?'CRÍTICO!':'SUPER EFETIVO!';pop.style.color=meta.crit?'#ffe797':'#c7ffe4';wrap.append(pop);setTimeout(()=>pop.remove(),850);}await sleep(430);}
 // Salas P2P: sem contas, sem banco, sinalização PeerJS pública. Necessita de internet nos dois navegadores.
 function loadPeerScript(){return new Promise((resolve,reject)=>{if(window.Peer)return resolve();const s=document.createElement('script');s.src='https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';s.onload=resolve;s.onerror=()=>reject(new Error('Não foi possível carregar o PeerJS. Confira sua conexão.'));document.head.append(s);});}
@@ -458,4 +493,4 @@ async function cloudSaveBattle(){
  }catch(e){console.warn('Cloud history:',e.message);}
 }
 $('openCloud').onclick=openCloudModal;cloudStatus();$('startPve').onclick=()=>start('pve');$('startLocal').onclick=()=>start('local');$('openOnline').onclick=openOnlineModal;$('openTeam').onclick=openTeamModal;$('editSquad').onclick=openTeamModal;$('railTeam').onclick=openTeamModal;$('railHelp').onclick=showAbout;$('modalClose').onclick=closeModal;$('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};$('switchButton').onclick=openSwitchModal;$('resetBattle').onclick=()=>{if(mode==='pve'||mode==='local')start(mode);};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
-$('spriteStyle').onclick=cycleSpriteStyle;$('shinyToggle').onclick=toggleShinySprites;updateSpriteControls();renderTeam();newGame('pve');
+$('sceneStyle').onclick=cycleBattlefield;$('spriteStyle').onclick=cycleSpriteStyle;$('shinyToggle').onclick=toggleShinySprites;updateSpriteControls();renderTeam();newGame('pve');
