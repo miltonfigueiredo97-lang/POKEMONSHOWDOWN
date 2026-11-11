@@ -6,3 +6,32 @@
 .battle-bottom{flex-wrap:wrap}
 .battle-bottom>div{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px}
 @media(max-width:540px){.battle-bottom>div{width:100%;justify-content:space-between;gap:5px}.battle-bottom .text-button{font-size:10px;padding:5px 3px}.top-right #openCloud{font-size:10px;padding:8px}}
+/* v0.4 — Cenários e texturas do Pokémon Showdown (CDN externo).
+   Mantemos sprites na geometria da arena: não ampliar textura pixel 96px com blur. */
+.battlefield{--battle-bg:url('https://play.pokemonshowdown.com/fx/bg-meadow.png');background-image:linear-gradient(180deg,rgba(8,24,37,.08),rgba(4,12,22,.10)),var(--battle-bg);background-size:cover,cover;background-position:center,center;}
+.battlefield::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,12,22,.05),transparent 50%,rgba(3,12,22,.08));pointer-events:none;z-index:0;}
+.battlefield::after,.battlefield>.mountains,.battlefield>.cloud,.battlefield>.arena-grid,.battlefield>.platform{display:none!important}
+.battlefield .pokemon{z-index:4;image-rendering:auto;filter:drop-shadow(0px 11px 11px rgba(0,0,0,.34));object-position:center bottom;}
+.battlefield .pokemon.pixelated{image-rendering:pixelated;}
+.battlefield .pokemon.champions-sprite{image-rendering:auto;}
+.pokemon-shadow{background:rgba(20,32,35,.28);filter:blur(7px)}
+.pokemon-enemy{right:13%;top:29%;width:clamp(148px,22vw,255px);height:clamp(145px,21vw,245px)}
+.pokemon-player{left:8%;bottom:11%;width:clamp(182px,26vw,315px);height:clamp(190px,25vw,295px)}
+.shadow-opp{top:68%;right:19%}.shadow-player{bottom:13%;left:15%}
+.poke-info{max-width:285px;background:#102733e8;min-width:175px;width:39%;z-index:8;border-color:#c1e4de88}
+.opponent-info{top:5%;left:3%}.player-info{right:3%;bottom:4%}
+.battle-stats-brief{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:8px;border-top:1px solid #6a8b8a4d;padding-top:7px;font:700 9px 'DM Sans',sans-serif;color:#b9d7df}
+.battle-stats-brief strong{color:#9ff5d4}
+.battle-detail{margin-top:6px;font-size:9px;color:#8cb8c5;line-height:1.3;overflow-wrap:anywhere}
+.attack-icon{width:27px;height:27px;object-fit:contain;flex:none;filter:drop-shadow(0 0 6px #c2d2ce44)}
+.move-btn{gap:7px}.move-btn .move-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.battle-bottom{flex-wrap:wrap}.battle-bottom>div{display:flex;gap:13px;flex-wrap:wrap;justify-content:flex-end}
+/* 3D CSS Poké Ball effect using a spherical shaded surface; not an official 3D model. */
+.switch-burst{width:86px;height:86px;border-radius:50%;background:linear-gradient(to bottom,rgba(255,255,255,.30) 0%,transparent 25%),radial-gradient(circle at 31% 18%,#fff7f7 0%,#ff6b70 15%,#e83044 40%,#ac162f 49%,#18262b 50% 55%,#fff 56%,#d6e2e6 80%,#a6bdc4 100%);box-shadow:inset -12px -13px 16px #0006,inset 4px 4px 9px #ffffff6b,0 0 20px #fff9;animation:ballEnter .62s ease-out forwards;z-index:14}
+.switch-burst::after{content:'';position:absolute;width:22px;height:22px;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff,#d4edf0 60%,#8db0b9 100%);border:6px solid #203036;box-shadow:0 0 7px #0007}
+@keyframes ballEnter{0%{opacity:0;transform:translate(-50%,-50%) scale(.1) rotate(-40deg)}35%{opacity:1;transform:translate(-50%,-50%) scale(1.05) rotate(12deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.38) rotate(70deg)}}
+.fx-sprite{width:clamp(44px,6vw,74px);height:clamp(44px,6vw,74px);background-size:contain;filter:drop-shadow(0 0 12px #ffffff88);}
+.fx-impact{z-index:10}
+.topbar a.top-btn{display:inline-flex;align-items:center;text-decoration:none;white-space:nowrap}
+@media(max-width:700px){.battlefield .pokemon-enemy{height:142px;width:146px;right:9%;top:31%}.battlefield .pokemon-player{height:175px;width:184px;left:1%;bottom:12%}.battle-stats-brief{font-size:8px;gap:2px}.poke-info{width:44%;min-width:141px;padding:8px}.poke-header strong{font-size:12px}.battle-detail{font-size:8px}.attack-icon{height:23px;width:23px}.move-btn{gap:5px}.type-bubble{display:none}}
+@media(prefers-reduced-motion:reduce){.pokemon,.cloud{animation:none!important;transition:none!important}}
