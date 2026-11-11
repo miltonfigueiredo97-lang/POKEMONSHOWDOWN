@@ -116,7 +116,14 @@
         const dx=(Number(v.x??this.x)-this.x)*this.s.sx,dy=-(Number(v.y??this.y)-this.y)*this.s.sy;
         return {transform:`translateX(-50%) translate(${dx}px,${dy}px) scale(${cap(Number(v.scale??1),.04,3)})`,opacity:v.opacity??1};
       };
-      try{const animation=this.img.animate([pose(old),pose(nn)],{delay,duration,easing:easing(transition),fill:"forwards"});this.animations.push(animation);}catch{}
+      const startAnimation=()=>{
+        try{
+          const animation=this.img.animate([pose(old),pose(nn)],{delay,duration,easing:easing(transition),fill:"forwards"});
+          this.animations.push(animation);
+        }catch{}
+      };
+      if(this.scene)this.scene.timeline.push(startAnimation);
+      else startAnimation();
       this.cursor+=duration;this.state=nn;return this;
     }
   }
@@ -129,6 +136,7 @@
     const a=new Mon(attacker,s,!player),b=new Mon(target,s,player);
     const scene=new Scene(s);
     scene.mons.push(a,b);
+    a.scene=scene;b.scene=scene;
     scene.battle.mySide.active=[{sprite:a}];scene.battle.yourSide.active=[{sprite:b}];
     const anims=window.PSArenaNativeMoveAnims;
     const key=String(meta?.move||"").toLowerCase().replace(/[^a-z0-9]/g,"");
