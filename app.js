@@ -262,19 +262,20 @@ function setSprite(img,p,back=false,small=false){
   while(next<list.length && spriteMissing.has(list[next]))next++;
   if(next>=list.length)return;
   const url=list[next++];const test=new Image();
-  test.onload=()=>{if(img.dataset.spriteKey===key){spriteCache.set(key,url);img.src=url;syncSpriteClass(img,small);}};
+  test.onload=()=>{if(img.dataset.spriteKey===key){spriteCache.set(key,url);img.dataset.loadedSpriteUrl=url;img.src=url;syncSpriteClass(img,small,url);}};
   test.onerror=()=>{spriteMissing.add(url);if(img.dataset.spriteKey===key)attempt();};
   test.src=url;
  };
  attempt();
  syncSpriteClass(img,small);
 }
-function syncSpriteClass(img,small=false){
+function syncSpriteClass(img,small=false,url=img?.dataset?.loadedSpriteUrl||''){
  if(!img||small)return;
- img.classList.toggle('pixelated',spriteStyle==='pixel'||spriteStyle==='animated');
- img.classList.toggle('hd-sprite',spriteStyle==='hd');
- img.classList.toggle('champions-sprite',spriteStyle==='champions');
- if(spriteStyle==='champions')img.classList.remove('pixelated');
+ // Evita suavização ao usar PNG/GIF de baixa resolução como alternativa às animações WebP HD.
+ const isLowRes=/\/generation-v\/|\/other\/showdown\/|\/sprites\/ani|\/pokemon\/(?:back\/|shiny\/)?\d+\.png(?:$|\?)/i.test(url);
+ img.classList.toggle('pixelated',isLowRes||spriteStyle==='pixel'||(spriteStyle==='animated'&&!url.endsWith('.webp')));
+ img.classList.toggle('hd-sprite',spriteStyle==='hd'&&!isLowRes);
+ img.classList.toggle('champions-sprite',spriteStyle==='champions'&&!isLowRes);
 }
 function fallbackThumb(img,p){setSprite(img,p,false,true);}
 function updateSpriteControls(){
