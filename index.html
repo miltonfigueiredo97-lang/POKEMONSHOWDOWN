@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b1721" />
   <meta name="description" content="Arena particular de batalhas Pokémon: PvE e PvP entre amigos, no navegador." />
   <title>Pokémon Arena | Batalhas particulares</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
 <div class="app-shell">
@@ -20,7 +20,7 @@
   <div class="main-wrap">
     <header class="topbar">
       <div class="wordmark"><span class="brand-dot"></span>POKÉMON <strong>ARENA</strong><span class="wordmark-beta">PRIVATE EDITION</span></div>
-      <div class="top-right"><span class="connection"><i></i> Sessão particular</span><button class="top-btn" id="openCloud" title="Equipe na nuvem">☁ Nuvem</button><button class="top-btn" id="openTeam">◈ <span>Minha equipe</span></button></div>
+      <div class="top-right"><span class="connection"><i></i> Sessão particular</span><button class="top-btn" id="openCloud" title="Equipe na nuvem">☁ Nuvem</button><a class="top-btn" href="./team.html">◈ Montar equipe</a><button class="top-btn" id="openTeam" title="Editar equipe">Equipe</button></div>
     </header>
     <main class="dashboard">
       <div class="dashboard-head">
@@ -46,7 +46,7 @@
             <div class="battle-controls">
               <div class="battle-message"><span class="msg-symbol">◈</span><div><small>REGISTRO DE BATALHA</small><div id="battleMessage" aria-live="polite">Prepare-se! Escolha um modo para começar.</div></div></div>
               <div class="battle-actions" id="battleActions"><div class="placeholder-actions"><span>✦</span> Escolha um modo de jogo para iniciar uma batalha.</div></div>
-              <div class="battle-bottom"><span id="actionHint">Pronto para jogar</span><div><button class="text-button" id="spriteStyle" type="button" title="Alternar sprites Animado / Gen 5 / HD">Visual: Animado</button><button class="text-button" id="shinyToggle" type="button" title="Alternar versões shiny">✨ Shiny: desligado</button><button class="text-button" id="switchButton" disabled>Trocar Pokémon</button><button class="text-button" id="resetBattle" disabled>Nova batalha ↗</button></div></div>
+              <div class="battle-bottom"><span id="actionHint">Pronto para jogar</span><div><button class="text-button" id="sceneStyle" type="button">Campo: Meadow</button><button class="text-button" id="spriteStyle" type="button" title="Alternar sprites Animado / Gen 5 / HD">Visual: Animado</button><button class="text-button" id="shinyToggle" type="button" title="Alternar versões shiny">✨ Shiny: desligado</button><button class="text-button" id="switchButton" disabled>Trocar Pokémon</button><button class="text-button" id="resetBattle" disabled>Nova batalha ↗</button></div></div>
             </div>
           </div>
           <div class="footnote"><span>◌</span> Projeto de fã privado, independente e não afiliado à Nintendo / Game Freak. Gráficos de terceiros sujeitos a seus direitos.</div>
@@ -57,13 +57,14 @@
           <section class="side-card battle-feed"><div class="side-head"><span>03 / REGISTRO</span><span>☷</span></div><h2>Últimos eventos</h2><div id="eventFeed" class="feed"><p class="feed-empty">Os turnos aparecerão aqui quando a batalha começar.</p></div></section>
         </aside>
       </section>
-      <footer>PRIVATE ARENA <span>•</span> FAN-MADE PROTOTYPE <span>•</span> v0.2 <div>FEITO PARA JOGAR COM AMIGOS</div></footer>
+      <footer>PRIVATE ARENA <span>•</span> FAN-MADE PROTOTYPE <span>•</span> v0.4 <div>FEITO PARA JOGAR COM AMIGOS</div></footer>
     </main>
   </div>
 </div>
 <div id="modalBackdrop" class="modal-backdrop hidden" role="presentation">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><div><div class="eyebrow">PERSONALIZE SUA EXPERIÊNCIA</div><h2 id="modalTitle">Monte sua equipe</h2></div><button id="modalClose" class="close-modal" aria-label="Fechar">✕</button></div><div id="modalContent"></div></div>
 </div>
+
 <script src="./app.js" defer></script>
 </body>
 </html>
