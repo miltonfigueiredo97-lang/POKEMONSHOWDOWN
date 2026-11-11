@@ -6,7 +6,7 @@
  * Generated with TypeScript-only syntax removed, behavior unchanged.
  */
 (function(){'use strict';
-const Config={routes:{fx:'https://play.pokemonshowdown.com/fx/',sprites:'https://play.pokemonshowdown.com/sprites/'}};
+const Config={routes:{fx:'/assets/showdown/fx/',sprites:'/assets/showdown/sprites/'}};
 const BattleOtherAnims = {
 	hitmark: {
 		anim(scene, [attacker]) {
