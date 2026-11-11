@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b141e" />
+  <title>Team Builder | Pokémon Arena</title>
+  <link rel="stylesheet" href="./teambuilder.css" />
+</head>
+<body>
+<header class="nav"><a class="brand" href="./index.html">◈ POKÉMON <b>ARENA</b></a><nav><a href="./index.html">⚔ Arena</a><a class="current" href="./team.html">◈ Montar equipe</a></nav><span class="tag">PRIVATE EDITION</span></header>
+<main class="app">
+  <div class="heading"><div><p class="eyebrow">CENTRAL DE MONTAGEM • 6 VS 6</p><h1>Monte seu <em>time perfeito.</em></h1><p class="hint">Pokémon, formas, quatro golpes, habilidade, item, natureza e atributos — tudo no mesmo lugar.</p></div><div class="heading-buttons"><button id="importShowdown" class="muted">Importar texto Showdown</button><button id="exportShowdown" class="muted">Exportar texto Showdown</button><button id="saveTeam" class="save">✓ Salvar equipe</button></div></div>
+  <div class="alert" id="notice" role="status" aria-live="polite">Carregando seus Pokémon...</div>
+  <div class="slots" id="teamSlots" aria-label="Seis espaços do time"></div>
+  <div class="columns">
+    <section class="panel roster"><div class="panel-title"><div><span class="eyebrow">01 / CATÁLOGO</span><h2>Escolha seu Pokémon</h2></div><span id="dexCount" class="pill">Buscando...</span></div><label class="field-label" for="speciesSearch">Nome ou número da Pokédex</label><input id="speciesSearch" type="search" autocomplete="off" placeholder="Pesquise qualquer Pokémon ou forma..." /><p id="searchNote" class="micro">O catálogo completo é carregado pela PokéAPI.</p><div class="results" id="speciesResults"></div></section>
+    <section class="panel editor"><div class="panel-title"><div><span class="eyebrow">02 / CONFIGURAÇÃO</span><h2 id="editorTitle">Seu Pokémon</h2></div><span class="pill" id="activeSlot">SLOT 1</span></div>
+      <div class="pokemon-top"><img id="mainSprite" alt="Pokémon selecionado"><div><p id="chosenId">#000</p><h2 id="chosenName">Escolha um Pokémon</h2><p id="chosenTypes" class="types"></p></div></div>
+      <div class="two"><label>Habilidade<select id="abilitySelect"></select></label><label>Item segurado<input id="itemInput" list="itemOptions" placeholder="Buscar item..."><datalist id="itemOptions"></datalist></label></div>
+      <div class="two"><label>Natureza<select id="natureSelect"></select></label><label>Nível<input id="levelInput" type="number" min="1" max="100" value="50"></label></div>
+      <div class="move-title"><h3>Quatro golpes <span id="moveCount">0/4</span></h3><p>Escolha golpes da espécie. Cada um mostra tipo, poder, precisão e PP.</p></div>
+      <div class="moves" id="moveRows"></div>
+      <div class="stats-title"><h3>Atributos</h3><p>Fórmula de nível, natureza, IV e EV aplicada ao visualizar o resultado. Limites: 31 IV por atributo; 252 EV por atributo; 510 EV no total.</p></div>
+      <div class="stats" id="statRows"></div><div class="stat-total" id="evTotal"></div>
+      <div class="footer-actions"><button id="resetPokemon" class="muted">Restaurar atributos</button><button id="saveBottom" class="save">✓ Salvar equipe</button></div>
+    </section>
+  </div>
+</main>
+<div id="importOverlay" class="overlay hidden"><div class="dialog"><h2>Importar time</h2><p>Cole um texto no formato de exportação Pokémon Showdown.</p><textarea id="importText" rows="12" spellcheck="false"></textarea><div class="footer-actions"><button id="closeImport" class="muted">Cancelar</button><button id="confirmImport" class="save">Importar</button></div></div></div>
+<script src="./teambuilder.js" defer></script>
+</body></html>
